@@ -1,18 +1,35 @@
 const { Ok, Err } = require("@herbsjs/herbs")
-const { createInvoice, getInvoice, payViaPaymentRequest } = require("lightning")
-const { connection } = require("../lightning/connection")
+const config = require("../config")
+const axios = require("axios")
+
+const dependency = {
+  axios,
+}
 
 class LightningClient {
-  constructor() {}
+  constructor(injection) {
+    this._di = Object.assign({}, dependency, injection)
+
+    /**
+     * Instância do Axios configurada para comunicação com a API.
+     * @type {import('axios').AxiosInstance}
+     */
+    this._axios = this._di.axios.create({
+      baseURL: config.lnbits.baseUrl,
+      headers: {
+        "X-Api-Key": config.lnbits.adminKey,
+      },
+    })
+  }
 
   async generateInvoice(amount) {
     try {
-      const request = { lnd: connection, tokens: amount }
-      const createInvoiceResponse = await createInvoice(request)
-      const invoice = createInvoiceResponse.request
-      const id = createInvoiceResponse.id
+      const { data } = await this._axios.post("/payments", {
+        out: false,
+        amount,
+      })
 
-      return Ok({ invoice, id })
+      return Ok({ invoice: data.payment_request, id: data.payment_hash })
     } catch (error) {
       return Err(error.message)
     }
@@ -20,10 +37,19 @@ class LightningClient {
 
   async checkInvoice(invoiceId) {
     try {
-      const request = { lnd: connection, id: invoiceId }
-      const getInvoiceResponse = await getInvoice(request)
+      const { data } = await this._axios.get(`/payments/${invoiceId}`)
 
-      return Ok(getInvoiceResponse)
+      return Ok({ id: invoiceId, is_confirmed: data.paid })
+    } catch (error) {
+      return Err(error.message)
+    }
+  }
+
+  async getAllPayments() {
+    try {
+      const { data } = await this._axios.get("/payments")
+
+      return Ok(data)
     } catch (error) {
       return Err(error.message)
     }
@@ -31,10 +57,12 @@ class LightningClient {
 
   async payInvoice(bolt11) {
     try {
-      const request = { lnd: connection, request: bolt11 }
-      const paymentResponse = await payViaPaymentRequest(request)
+      await this._axios.post("/payments", {
+        out: true,
+        bolt11,
+      })
 
-      return Ok(paymentResponse)
+      return Ok()
     } catch (error) {
       return Err(error.message)
     }
