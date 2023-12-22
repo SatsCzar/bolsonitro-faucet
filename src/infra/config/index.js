@@ -7,4 +7,5 @@ module.exports = {
   cron: require("./cron"),
   lightning: require("./lightning"),
   database: require("./database"),
+  lnbits: require("./lnbits"),
 }
