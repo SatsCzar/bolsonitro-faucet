@@ -1,4 +1,4 @@
-const { Repository } = require("@herbsjs/herbs2knex")
+const { Repository } = require("@herbsjs/herbs2mongo")
 const { herbarium } = require("@herbsjs/herbarium")
 const DepositIntent = require("../../../domain/entities/DepositIntent")
 const connection = require("../connection")
@@ -8,14 +8,15 @@ class DepositIntentionsRepository extends Repository {
   constructor() {
     super({
       entity: DepositIntent,
-      table: "deposit_intentions",
-      knex: connection,
+      collection: "deposit_intentions",
+      mongodb: connection,
+      ids: ["id"],
     })
   }
 
   findAllPending() {
     return this.find({
-      where: {
+      filter: {
         status: depositStatusEnum.pending,
       },
     })

@@ -2,16 +2,12 @@ const { usecase, step, Ok, checker, Err } = require("@herbsjs/herbs")
 const { herbarium } = require("@herbsjs/herbarium")
 const LightningClient = require("../../infra/clients/LightningClient")
 const DepositIntentionsRepository = require("../../infra/database/repositories/DepositIntentionsRepository")
-const TransactionRepository = require("../../infra/database/repositories/TransactionRepository")
 const depositStatusEnum = require("../enums/depositStatusEnum")
-const Transaction = require("../entities/Transaction")
-const transactionTypesEnum = require("../enums/transactionTypesEnum")
 const lightningPayReq = require("bolt11")
 
 const dependency = {
   LightningClient,
   DepositIntentionsRepository,
-  TransactionRepository,
 }
 
 const checkDepositIntentions = (injection) =>
@@ -25,7 +21,6 @@ const checkDepositIntentions = (injection) =>
     setup: (ctx) => {
       ctx.di = Object.assign({}, dependency, injection)
       ctx.di.depositIntentionsInstance = new ctx.di.DepositIntentionsRepository()
-      ctx.di.transactionRepositoryInstance = new ctx.di.TransactionRepository()
       ctx.di.lightningClientInstance = new ctx.di.LightningClient()
       ctx.data = {
         currentDate: ctx.di.currentDate || new Date(),
@@ -100,28 +95,6 @@ const checkDepositIntentions = (injection) =>
 
         ctx.data.intentionsCredited = intentionsCredited
 
-        return Ok()
-      }),
-
-      "Credit amount in user account": step(async (ctx) => {
-        const { transactionRepositoryInstance } = ctx.di
-        const { intentionsCredited, currentDate } = ctx.data
-
-        for (const intention of intentionsCredited) {
-          try {
-            const transaction = Transaction.fromJSON({
-              amount: intention.amount,
-              chatId: intention.chatId,
-              date: currentDate,
-              type: transactionTypesEnum.incoming,
-              intentionId: intention.id,
-            })
-
-            await transactionRepositoryInstance.insert(transaction)
-          } catch (error) {
-            console.log(error)
-          }
-        }
         return Ok()
       }),
 

@@ -1,4 +1,15 @@
-const knex = require("knex")
+const { MongoClient } = require("mongodb")
 const config = require("../config")
 
-module.exports = knex(config.database)
+let dbInstance = null
+
+module.exports = async () => {
+  if (dbInstance) {
+    return new Promise((resolve) => resolve(dbInstance))
+  }
+
+  const client = await new MongoClient(config.database.connectionString)
+  await client.connect()
+  dbInstance = client.db(config.database.dbName)
+  return dbInstance
+}

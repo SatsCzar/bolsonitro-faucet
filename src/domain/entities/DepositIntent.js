@@ -3,7 +3,7 @@ const { herbarium } = require("@herbsjs/herbarium")
 const depositStatusEnum = require("../enums/depositStatusEnum")
 
 const DepositIntent = entity("Deposit Intent", {
-  id: id(Number),
+  id: id(String),
   amount: field(Number),
   chatId: field(Number),
   status: field(String, { validation: { contains: { allowed: Object.values(depositStatusEnum) } } }),
