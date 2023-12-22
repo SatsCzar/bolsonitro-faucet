@@ -4,7 +4,7 @@ const LightningClient = require("../../infra/clients/LightningClient")
 const DepositIntentionsRepository = require("../../infra/database/repositories/DepositIntentionsRepository")
 const TransactionRepository = require("../../infra/database/repositories/TransactionRepository")
 const depositStatusEnum = require("../enums/depositStatusEnum")
-const Transaction = require("../entities/transaction")
+const Transaction = require("../entities/Transaction")
 const transactionTypesEnum = require("../enums/transactionTypesEnum")
 
 const dependency = {
