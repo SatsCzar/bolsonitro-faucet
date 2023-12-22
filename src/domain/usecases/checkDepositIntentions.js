@@ -1,11 +1,12 @@
-const { usecase, step, Ok, checker } = require("@herbsjs/herbs")
+const { usecase, step, Ok, checker, Err } = require("@herbsjs/herbs")
 const { herbarium } = require("@herbsjs/herbarium")
 const LightningClient = require("../../infra/clients/LightningClient")
 const DepositIntentionsRepository = require("../../infra/database/repositories/DepositIntentionsRepository")
 const TransactionRepository = require("../../infra/database/repositories/TransactionRepository")
 const depositStatusEnum = require("../enums/depositStatusEnum")
-const Transaction = require("../entities/transaction")
+const Transaction = require("../entities/Transaction")
 const transactionTypesEnum = require("../enums/transactionTypesEnum")
+const lightningPayReq = require("bolt11")
 
 const dependency = {
   LightningClient,
@@ -25,7 +26,7 @@ const checkDepositIntentions = (injection) =>
       ctx.di = Object.assign({}, dependency, injection)
       ctx.di.depositIntentionsInstance = new ctx.di.DepositIntentionsRepository()
       ctx.di.transactionRepositoryInstance = new ctx.di.TransactionRepository()
-      ctx.di.lightningClient = new ctx.di.LightningClient()
+      ctx.di.lightningClientInstance = new ctx.di.LightningClient()
       ctx.data = {
         currentDate: ctx.di.currentDate || new Date(),
       }
@@ -43,34 +44,30 @@ const checkDepositIntentions = (injection) =>
       return Ok()
     }),
 
-    "Check intentions in Lightning Network": step(async (ctx) => {
-      const { lightningClient } = ctx.di
-      const { intentionsPending } = ctx.data
+    "Get all payments in Lightning Network": step(async (ctx) => {
+      const { lightningClientInstance } = ctx.di
 
-      const invoices = []
+      const paymentsReceived = await lightningClientInstance.getAllPayments()
 
-      for (const intention of intentionsPending) {
-        const result = await lightningClient.checkInvoice(intention.invoiceId)
+      if (paymentsReceived.isErr) return Err(paymentsReceived.err)
 
-        if (result.isErr) continue
-
-        invoices.push(result.ok)
-      }
-
-      ctx.data.invoices = invoices
+      ctx.data.paymentsReceived = paymentsReceived.ok
 
       return Ok()
     }),
 
     "Check intentions paid and credit the amount in user account": step({
       "Check the intentions that were paid": step((ctx) => {
-        const { invoices, intentionsPending } = ctx.data
+        const { intentionsPending, paymentsReceived } = ctx.data
 
-        const intentionsPaid = invoices
-          .map((invoice) => {
-            const werePaid = invoice.is_confirmed
+        const intentionsPaid = intentionsPending
+          .map((intention) => {
+            const intentionWerePaid = ({ payment_hash, pending }) =>
+              payment_hash == intention.invoiceId && pending == false
 
-            if (werePaid) return intentionsPending.find((intention) => intention.invoiceId === invoice.id)
+            const werePaid = paymentsReceived.some(intentionWerePaid)
+
+            if (werePaid) return intention
           })
           .filter(Boolean)
 
@@ -85,10 +82,14 @@ const checkDepositIntentions = (injection) =>
 
         const intentionsCredited = []
 
-        for (const intention of intentionsPaid) {
-          try {
-            intention.status = depositStatusEnum.credited
+        const intentionsToUpdate = intentionsPaid.map((intention) => {
+          intention.status = depositStatusEnum.credited
 
+          return intention
+        })
+
+        for (const intention of intentionsToUpdate) {
+          try {
             const updated = await depositIntentionsInstance.update(intention)
 
             intentionsCredited.push(updated)
@@ -142,13 +143,15 @@ const checkDepositIntentions = (injection) =>
     }),
 
     "Check the intentions that were expired": step((ctx) => {
-      const { invoices, intentionsPending, currentDate } = ctx.data
+      const { intentionsPending, currentDate } = ctx.data
 
-      const intentionsExpired = invoices
-        .map((invoice) => {
-          const wereExpired = invoice.expires_at > currentDate
+      const intentionsExpired = intentionsPending
+        .map((intention) => {
+          const decodedBolt11 = lightningPayReq.decode(intention.bolt11)
 
-          if (wereExpired) return intentionsPending.find((intention) => intention.invoiceId === invoice.id)
+          const wereExpired = new Date(decodedBolt11.timeExpireDateString) < currentDate
+
+          if (wereExpired) return intention
         })
         .filter(Boolean)
 
