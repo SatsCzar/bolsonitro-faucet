@@ -3,11 +3,13 @@ const commandParts = require("@satsczar/telegraf-command-parts")
 const config = require("../config")
 const createDepositIntent = require("../../domain/usecases/createDepositIntent")
 const { checker } = require("@herbsjs/herbs")
+const userMiddleware = require("./middlewares/userMiddleware")
 
 const runBot = () => {
   const bot = new Telegraf(config.token)
 
   bot.use(commandParts())
+  bot.use(userMiddleware())
 
   bot.command("start", async (ctx) => {
     try {
