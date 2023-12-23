@@ -4,7 +4,6 @@ const LightningClient = require("../../infra/clients/LightningClient")
 const CashuClient = require("../../infra/clients/CashuClient")
 const UserRepository = require("../../infra/database/repositories/UserRepository")
 const config = require("../../infra/config")
-const userCanClaim = require("../helpers/userCanClaim")
 
 const FAUCET_REWARD = config.faucet.faucetReward
 
@@ -31,13 +30,15 @@ const claimFaucet = (injection) =>
     "Checks if the user can claim the reward": step((ctx) => {
       const user = ctx.user
 
-      const { canClaim, diffHours } = userCanClaim(user.lastClaim, config.faucet.faucetIntervalHours)
+      const canClaim = user.canClaim()
 
       if (canClaim) return Ok()
 
-      const timeCanClain = Math.abs(Math.round(diffHours - config.faucet.faucetIntervalHours))
+      const diffHours = user.diffHours()
 
-      return Err(`You can't get the reward now, wait ${timeCanClain} hours`)
+      const timeCanClaim = Math.abs(Math.round(diffHours - config.faucet.faucetIntervalHours))
+
+      return Err(`You can't get the reward now, wait ${timeCanClaim} hours`)
     }),
 
     "Check if the wallet has enough satoshis": step(async (ctx) => {
