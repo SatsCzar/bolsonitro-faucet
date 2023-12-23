@@ -8,4 +8,6 @@ module.exports = {
   lightning: require("./lightning"),
   database: require("./database"),
   lnbits: require("./lnbits"),
+  cashu: require("./cashu"),
+  faucet: require("./faucet"),
 }

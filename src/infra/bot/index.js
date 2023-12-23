@@ -4,6 +4,7 @@ const config = require("../config")
 const createDepositIntent = require("../../domain/usecases/createDepositIntent")
 const { checker } = require("@herbsjs/herbs")
 const userMiddleware = require("./middlewares/userMiddleware")
+const claimFaucet = require("../../domain/usecases/claimFaucet")
 
 const runBot = () => {
   const bot = new Telegraf(config.token)
@@ -45,6 +46,27 @@ const runBot = () => {
       const { invoice } = response.ok
 
       await ctx.reply(invoice)
+    } catch (error) {
+      console.log(error)
+    }
+  })
+
+  bot.command("claim", async (ctx) => {
+    try {
+      const usecase = claimFaucet()
+
+      await usecase.authorize(ctx.state.user)
+
+      const response = await usecase.run()
+
+      if (response.isErr) {
+        await ctx.reply(response.err.message || response.err)
+        return
+      }
+
+      const { token } = response.ok
+
+      await ctx.reply(token)
     } catch (error) {
       console.log(error)
     }

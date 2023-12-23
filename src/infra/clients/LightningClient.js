@@ -22,6 +22,16 @@ class LightningClient {
     })
   }
 
+  async getWalletDetails() {
+    try {
+      const { data } = await this._axios.get("/wallet")
+
+      return Ok(data)
+    } catch (error) {
+      return Err(error.message)
+    }
+  }
+
   async generateInvoice(amount) {
     try {
       const { data } = await this._axios.post("/payments", {
