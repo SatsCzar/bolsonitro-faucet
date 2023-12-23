@@ -20,13 +20,13 @@ const runBot = () => {
     }
   })
 
-  bot.command("deposit", async (ctx) => {
+  bot.command("donate", async (ctx) => {
     try {
       const amount = ctx.state.command.splitArgs[0]
       const chatId = ctx.message.chat.id
 
       if (checker.isEmpty(amount)) {
-        await ctx.reply("Please enter the number of satoshis\nExample: /deposit 5000", {
+        await ctx.reply("Please enter the number of satoshis\nExample: /donate 5000", {
           parse_mode: "Markdown",
         })
         return
